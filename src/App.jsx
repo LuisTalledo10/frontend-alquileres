@@ -1,78 +1,145 @@
-import { useState, useEffect } from 'react'
-import './App.css'
+import React from 'react';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Landing from './pages/Landing';
+import Register from './pages/Register';
+import Login from './pages/Login';
+import WalkersDashboard from './pages/WalkersDashboard';
+import MyPets from './pages/MyPets';
+import MyWalks from './pages/MyWalks';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-function App() {
-  const [empresa, setEmpresa] = useState(null)
-  const [cargando, setCargando] = useState(true)
+function ProtectedRoute({ children }) {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
 
-  // TU URL DE RENDER ☁️
-  const API_URL = "https://api-alquileres-trujillo.onrender.com" 
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
-  useEffect(() => {
-    // 1. Llamamos a tu servidor en la nube
-    fetch(`${API_URL}/api/empresa-test`)
-      .then(response => response.json())
-      .then(data => {
-        // 2. Guardamos el primer dato que llegue
-        if(data && data.length > 0) {
-          setEmpresa(data[0]) 
-        }
-        setCargando(false)
-      })
-      .catch(error => {
-        console.error("Error cargando datos:", error)
-        setCargando(false)
-      })
-  }, [])
-
-  return (
-    <div style={{ padding: '40px', fontFamily: 'Arial', textAlign: 'center', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
-      <h1 style={{ color: '#333' }}>Sistema SaaS: Alquileres Trujillo 🇵🇪</h1>
-      <p style={{ color: '#666' }}>Conectado en tiempo real con Supabase + Render</p>
-      
-      {cargando ? (
-        <h3 style={{ marginTop: '50px' }}>🔄 Conectando con el satélite...</h3>
-      ) : empresa ? (
-        <div style={{ 
-          background: 'white',
-          padding: '30px', 
-          borderRadius: '20px',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-          maxWidth: '400px',
-          margin: '40px auto',
-          borderTop: '5px solid #007bff'
-        }}>
-          <h2 style={{ margin: '0 0 10px 0', color: '#007bff' }}>{empresa.name}</h2>
-          <hr style={{ border: 'none', borderBottom: '1px solid #eee', margin: '20px 0' }} />
-          
-          <div style={{ textAlign: 'left', marginBottom: '20px' }}>
-            <p>📦 <strong>Plan:</strong> <span style={{ background: '#e3f2fd', color: '#007bff', padding: '5px 10px', borderRadius: '10px', fontSize: '0.9em' }}>{empresa.plan_type.toUpperCase()}</span></p>
-            <p>📡 <strong>Estado:</strong> {empresa.active ? '✅ Operativo' : '🔴 Inactivo'}</p>
-          </div>
-
-          <button style={{ 
-            width: '100%',
-            padding: '15px', 
-            background: 'linear-gradient(45deg, #007bff, #0056b3)', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '10px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            transition: 'transform 0.2s'
-          }} onClick={() => alert("¡Próximamente verás el inventario aquí!")}>
-            Ver Inventario
-          </button>
-        </div>
-      ) : (
-        <div style={{ color: 'red', marginTop: '20px' }}>
-          <h3>⚠️ Error de Conexión</h3>
-          <p>Verifica que tu backend en Render siga activo.</p>
-        </div>
-      )}
-    </div>
-  )
+  return children;
 }
 
-export default App
+function AppLayout({ children }) {
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--color-bg-app)' }}>
+      <Navbar />
+      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: 'clamp(1.5rem, 4vw, 2.5rem) clamp(1rem, 3vw, 2rem)' }}>
+        {children}
+      </main>
+    </div>
+  );
+}
+
+function PublicLayout({ children }) {
+  return (
+    <div>
+      <Navbar />
+      {children}
+    </div>
+  );
+}
+
+// Componente para la ruta raíz: muestra Dashboard si está logueado, Landing si no
+function HomePage() {
+  const { user } = useAuth();
+  
+  if (user) {
+    // Usuario logueado: mostrar Dashboard con layout
+    return (
+      <AppLayout>
+        <WalkersDashboard />
+      </AppLayout>
+    );
+  }
+  
+  // Usuario no logueado: mostrar Landing
+  return (
+    <PublicLayout>
+      <Landing />
+    </PublicLayout>
+  );
+}
+
+export default function App() {
+  return (
+    <HashRouter>
+      <AuthProvider>
+        <Routes>
+          {/* Ruta raíz: condicional según autenticación */}
+          <Route path="/" element={<HomePage />} />
+          
+          {/* Rutas públicas */}
+          <Route 
+            path="/register" 
+            element={
+              <PublicLayout>
+                <Register />
+              </PublicLayout>
+            } 
+          />
+          <Route 
+            path="/login" 
+            element={
+              <PublicLayout>
+                <Login />
+              </PublicLayout>
+            } 
+          />
+
+          {/* Rutas protegidas con layout moderno */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <WalkersDashboard />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Rutas protegidas con layout moderno */}
+          <Route
+            path="/pets"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <MyPets />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/my-walks"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <MyWalks />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/jobs"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <div style={{ textAlign: 'center', padding: 60 }}>
+                    <h2 style={{ fontSize: 24, color: '#1e293b', marginBottom: 12 }}>Mis Trabajos</h2>
+                    <p style={{ color: '#6b7280' }}>Próximamente: Historial de paseos</p>
+                  </div>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all: redirige a raíz */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </HashRouter>
+  );
+}
